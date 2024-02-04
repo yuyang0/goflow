@@ -3,15 +3,15 @@ package main
 import (
 	"fmt"
 
-	"github.com/s8sg/goflow/samples/condition"
-	"github.com/s8sg/goflow/samples/loop"
-	"github.com/s8sg/goflow/samples/myflow"
-	"github.com/s8sg/goflow/samples/parallel"
-	"github.com/s8sg/goflow/samples/serial"
-	"github.com/s8sg/goflow/samples/single"
-	"github.com/s8sg/goflow/types"
+	"github.com/yuyang0/goflow/samples/condition"
+	"github.com/yuyang0/goflow/samples/loop"
+	"github.com/yuyang0/goflow/samples/myflow"
+	"github.com/yuyang0/goflow/samples/parallel"
+	"github.com/yuyang0/goflow/samples/serial"
+	"github.com/yuyang0/goflow/samples/single"
+	"github.com/yuyang0/goflow/types"
 
-	goflow "github.com/s8sg/goflow/v1"
+	goflow "github.com/yuyang0/goflow/v1"
 )
 
 func main() {

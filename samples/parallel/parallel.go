@@ -2,8 +2,9 @@ package parallel
 
 import (
 	"fmt"
-	flow "github.com/s8sg/goflow/flow/v1"
 	"time"
+
+	flow "github.com/yuyang0/goflow/flow/v1"
 )
 
 // Workload function

@@ -1,4 +1,4 @@
-module github.com/s8sg/goflow/dashboard
+module github.com/yuyang0/goflow/dashboard
 
 go 1.20
 
@@ -7,7 +7,7 @@ require (
 	github.com/redis/go-redis/v9 v9.4.0
 	github.com/rs/xid v1.2.1
 	github.com/s8sg/faas-flow v0.6.2
-	github.com/s8sg/goflow v0.1.5-0.20230622121947-e28fb2fe6482
+	github.com/yuyang0/goflow v0.1.5-0.20230622121947-e28fb2fe6482
 )
 
 require (

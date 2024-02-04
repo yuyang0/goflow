@@ -1,4 +1,4 @@
-module github.com/s8sg/goflow
+module github.com/yuyang0/goflow
 
 go 1.21.0
 

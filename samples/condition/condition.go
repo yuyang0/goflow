@@ -2,8 +2,9 @@ package condition
 
 import (
 	"fmt"
-	flow "github.com/s8sg/goflow/flow/v1"
 	"math/rand"
+
+	flow "github.com/yuyang0/goflow/flow/v1"
 )
 
 const (

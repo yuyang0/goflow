@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/redis/go-redis/v9"
-	lib2 "github.com/s8sg/goflow/dashboard/lib"
-	goflow3 "github.com/s8sg/goflow/v1"
+	lib2 "github.com/yuyang0/goflow/dashboard/lib"
+	goflow3 "github.com/yuyang0/goflow/v1"
 )
 
 var rdb *redis.Client

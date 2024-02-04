@@ -1,9 +1,9 @@
 package runtime
 
 import (
-	redisStateStore "github.com/s8sg/goflow/core/redis-statestore"
-	"github.com/s8sg/goflow/core/sdk"
-	"github.com/s8sg/goflow/types"
+	redisStateStore "github.com/yuyang0/goflow/core/redis-statestore"
+	"github.com/yuyang0/goflow/core/sdk"
+	"github.com/yuyang0/goflow/types"
 )
 
 func initStateStore(cfg *types.RedisConfig) (stateStore sdk.StateStore, err error) {

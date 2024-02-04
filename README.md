@@ -1,8 +1,8 @@
-# Go-Flow  &nbsp; [![Tweet](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=Start%20writing%20your%20distributed%20workflow%20in%20Golang%20with%20GoFlow&url=https://github.com/s8sg/goflow&hashtags=golang,workflow,distributedcomputing,framework)
+# Go-Flow  &nbsp; [![Tweet](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=Start%20writing%20your%20distributed%20workflow%20in%20Golang%20with%20GoFlow&url=https://github.com/yuyang0/goflow&hashtags=golang,workflow,distributedcomputing,framework)
 
-[![GoDoc](https://godoc.org/github.com/s8sg/goflow?status.svg)](https://godoc.org/github.com/s8sg/goflow)
-![Build](https://github.com/s8sg/goflow/workflows/GO-Flow-Build/badge.svg) 
-[![Go Report Card](https://goreportcard.com/badge/github.com/s8sg/goflow)](https://goreportcard.com/report/github.com/s8sg/goflow)
+[![GoDoc](https://godoc.org/github.com/yuyang0/goflow?status.svg)](https://godoc.org/github.com/yuyang0/goflow)
+![Build](https://github.com/yuyang0/goflow/workflows/GO-Flow-Build/badge.svg) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/yuyang0/goflow)](https://goreportcard.com/report/github.com/yuyang0/goflow)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 
@@ -24,11 +24,11 @@ GoFlow executes your tasks on an array of workers by uniformly distributing the 
 Install GoFlow
 ```sh
 go mod init myflow
-go get github.com/s8sg/goflow@master
+go get github.com/yuyang0/goflow@master
 ```
 
 ## Write First Flow
-> Library to Build Flow `github.com/s8sg/goflow/flow/v1`
+> Library to Build Flow `github.com/yuyang0/goflow/flow/v1`
 
 [![GoDoc](https://godoc.org/github.com/faasflow/goflow/flow?status.svg)](https://godoc.org/github.com/faasflow/goflow/flow)
 
@@ -38,8 +38,8 @@ package main
 
 import (
 	"fmt"
-	goflow "github.com/s8sg/goflow/v1"
-	flow "github.com/s8sg/goflow/flow/v1"
+	goflow "github.com/yuyang0/goflow/v1"
+	flow "github.com/yuyang0/goflow/flow/v1"
 )
 
 // Workload function

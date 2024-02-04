@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/s8sg/goflow/core/sdk"
-	"github.com/s8sg/goflow/types"
+	"github.com/yuyang0/goflow/core/sdk"
+	"github.com/yuyang0/goflow/types"
 )
 
 type RedisDataStore struct {
