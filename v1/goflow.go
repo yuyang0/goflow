@@ -7,12 +7,12 @@ import (
 	runtimePkg "github.com/s8sg/goflow/core/runtime"
 	"github.com/s8sg/goflow/core/sdk"
 	"github.com/s8sg/goflow/runtime"
+	"github.com/s8sg/goflow/types"
 )
 
 type FlowService struct {
 	Port                    int
-	RedisURL                string
-	RedisPassword           string
+	RedisCfg                types.RedisConfig
 	RequestAuthSharedSecret string
 	RequestAuthEnabled      bool
 	WorkerConcurrency       int
@@ -52,8 +52,7 @@ func (fs *FlowService) Execute(flowName string, req *Request) error {
 
 	fs.ConfigureDefault()
 	fs.runtime = &runtime.FlowRuntime{
-		RedisURL:                fs.RedisURL,
-		RedisPassword:           fs.RedisPassword,
+		RedisCfg:                fs.RedisCfg,
 		RequestAuthEnabled:      fs.RequestAuthEnabled,
 		RequestAuthSharedSecret: fs.RequestAuthSharedSecret,
 	}
@@ -84,8 +83,7 @@ func (fs *FlowService) Pause(flowName string, requestId string) error {
 
 	fs.ConfigureDefault()
 	fs.runtime = &runtime.FlowRuntime{
-		RedisURL:                fs.RedisURL,
-		RedisPassword:           fs.RedisPassword,
+		RedisCfg:                fs.RedisCfg,
 		RequestAuthEnabled:      fs.RequestAuthEnabled,
 		RequestAuthSharedSecret: fs.RequestAuthSharedSecret,
 	}
@@ -113,8 +111,7 @@ func (fs *FlowService) Resume(flowName string, requestId string) error {
 
 	fs.ConfigureDefault()
 	fs.runtime = &runtime.FlowRuntime{
-		RedisURL:                fs.RedisURL,
-		RedisPassword:           fs.RedisPassword,
+		RedisCfg:                fs.RedisCfg,
 		RequestAuthEnabled:      fs.RequestAuthEnabled,
 		RequestAuthSharedSecret: fs.RequestAuthSharedSecret,
 	}
@@ -142,8 +139,7 @@ func (fs *FlowService) Stop(flowName string, requestId string) error {
 
 	fs.ConfigureDefault()
 	fs.runtime = &runtime.FlowRuntime{
-		RedisURL:                fs.RedisURL,
-		RedisPassword:           fs.RedisPassword,
+		RedisCfg:                fs.RedisCfg,
 		RequestAuthEnabled:      fs.RequestAuthEnabled,
 		RequestAuthSharedSecret: fs.RequestAuthSharedSecret,
 	}
@@ -254,8 +250,8 @@ func (fs *FlowService) ConfigureDefault() {
 	if fs.OpenTraceUrl == "" {
 		fs.OpenTraceUrl = DefaultTraceUrl
 	}
-	if fs.RedisURL == "" {
-		fs.RedisURL = DefaultRedisUrl
+	if fs.RedisCfg.Addr == "" {
+		fs.RedisCfg.Addr = DefaultRedisUrl
 	}
 	if fs.WorkerConcurrency == 0 {
 		fs.WorkerConcurrency = DefaultWorkerConcurrency
@@ -281,8 +277,7 @@ func (fs *FlowService) initRuntime(errorChan chan error) error {
 	fs.runtime = &runtime.FlowRuntime{
 		Flows:                   map[string]runtime.FlowDefinitionHandler{},
 		OpenTracingUrl:          fs.OpenTraceUrl,
-		RedisURL:                fs.RedisURL,
-		RedisPassword:           fs.RedisPassword,
+		RedisCfg:                fs.RedisCfg,
 		DataStore:               fs.DataStore,
 		Logger:                  fs.Logger,
 		ServerPort:              fs.Port,

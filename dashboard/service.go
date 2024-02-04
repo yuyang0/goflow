@@ -2,14 +2,16 @@ package main
 
 import (
 	"fmt"
-	"github.com/rs/xid"
 	"log"
 
-	lib2 "github.com/s8sg/goflow/dashboard/lib"
-	goflow3 "github.com/s8sg/goflow/v1"
-	redis "gopkg.in/redis.v5"
+	"github.com/rs/xid"
+
 	"os"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
+	lib2 "github.com/s8sg/goflow/dashboard/lib"
+	goflow3 "github.com/s8sg/goflow/v1"
 )
 
 var rdb *redis.Client

@@ -1,11 +1,13 @@
 package RedisDataStore
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
-	"github.com/go-redis/redis"
+	"github.com/redis/go-redis/v9"
 	"github.com/s8sg/goflow/core/sdk"
+	"github.com/s8sg/goflow/types"
 )
 
 type RedisDataStore struct {
@@ -13,13 +15,10 @@ type RedisDataStore struct {
 	redisClient redis.UniversalClient
 }
 
-func GetRedisDataStore(redisUri string, password string) (sdk.DataStore, error) {
+func GetRedisDataStore(cfg *types.RedisConfig) (sdk.DataStore, error) {
 	ds := &RedisDataStore{}
-	client := redis.NewClient(&redis.Options{
-		Addr:     redisUri,
-		Password: password,
-	})
-	err := client.Ping().Err()
+	client := cfg.NewRedisClient()
+	err := client.Ping(context.TODO()).Err()
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +47,7 @@ func (this *RedisDataStore) Set(key string, value []byte) error {
 	}
 
 	fullPath := getPath(this.bucketName, key)
-	_, err := this.redisClient.Set(fullPath, string(value), 0).Result()
+	_, err := this.redisClient.Set(context.TODO(), fullPath, string(value), 0).Result()
 	if err != nil {
 		return fmt.Errorf("error writing: %s, error: %s", fullPath, err.Error())
 	}
@@ -62,7 +61,7 @@ func (this *RedisDataStore) Get(key string) ([]byte, error) {
 	}
 
 	fullPath := getPath(this.bucketName, key)
-	v := this.redisClient.Get(fullPath)
+	v := this.redisClient.Get(context.TODO(), fullPath)
 	if v == nil {
 		return nil, errors.New(fmt.Sprintf("error reading: %v, data is nil", fullPath))
 	}
@@ -79,7 +78,7 @@ func (this *RedisDataStore) Del(key string) error {
 	}
 
 	fullPath := getPath(this.bucketName, key)
-	_, err := this.redisClient.Del(fullPath).Result()
+	_, err := this.redisClient.Del(context.TODO(), fullPath).Result()
 	if err != nil {
 		return fmt.Errorf("error removing: %s, error: %s", fullPath, err.Error())
 	}
@@ -91,9 +90,9 @@ func (this *RedisDataStore) Cleanup() error {
 	client := this.redisClient
 	var rerr error
 
-	iter := client.Scan(0, key, 0).Iterator()
-	for iter.Next() {
-		err := client.Del(iter.Val()).Err()
+	iter := client.Scan(context.TODO(), 0, key, 0).Iterator()
+	for iter.Next(context.TODO()) {
+		err := client.Del(context.TODO(), iter.Val()).Err()
 		if err != nil {
 			rerr = err
 		}

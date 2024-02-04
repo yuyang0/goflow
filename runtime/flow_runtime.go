@@ -9,9 +9,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/adjust/rmq/v4"
-	redis2 "github.com/go-redis/redis/v8"
+	"github.com/adjust/rmq/v5"
 	"github.com/jasonlvhit/gocron"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/xid"
 	"github.com/s8sg/goflow/core/runtime"
 	"github.com/s8sg/goflow/core/runtime/controller"
@@ -20,14 +20,13 @@ import (
 	"github.com/s8sg/goflow/core/sdk/exporter"
 	"github.com/s8sg/goflow/eventhandler"
 	log2 "github.com/s8sg/goflow/log"
-	"gopkg.in/redis.v5"
+	"github.com/s8sg/goflow/types"
 )
 
 type FlowRuntime struct {
 	Flows                   map[string]FlowDefinitionHandler
 	OpenTracingUrl          string
-	RedisURL                string
-	RedisPassword           string
+	RedisCfg                types.RedisConfig
 	stateStore              sdk.StateStore
 	DataStore               sdk.DataStore
 	Logger                  sdk.Logger
@@ -84,25 +83,21 @@ const (
 func (fRuntime *FlowRuntime) Init() error {
 	var err error
 
-	fRuntime.rdb = redis.NewClient(&redis.Options{
-		Addr:     fRuntime.RedisURL,
-		Password: fRuntime.RedisPassword,
-		DB:       0,
-	})
+	fRuntime.rdb = fRuntime.RedisCfg.NewRedisClient()
 
-	fRuntime.stateStore, err = initStateStore(fRuntime.RedisURL, fRuntime.RedisPassword)
+	fRuntime.stateStore, err = initStateStore(&fRuntime.RedisCfg)
 	if err != nil {
 		return fmt.Errorf("failed to initialize the StateStore, %v", err)
 	}
 
 	if fRuntime.DataStore == nil {
-		fRuntime.DataStore, err = initDataStore(fRuntime.RedisURL, fRuntime.RedisPassword)
+		fRuntime.DataStore, err = initDataStore(&fRuntime.RedisCfg)
 		if err != nil {
 			return fmt.Errorf("failed to initialize the StateStore, %v", err)
 		}
 	}
 
-	fRuntime.rmqConnection, err = OpenConnectionV2("goflow", "tcp", fRuntime.RedisURL, fRuntime.RedisPassword, 0, nil)
+	fRuntime.rmqConnection, err = OpenConnectionV2("goflow", &fRuntime.RedisCfg, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initiate rmq connection, error %v", err)
 	}
@@ -218,14 +213,14 @@ func (fRuntime *FlowRuntime) ExitWorkerMode() error {
 }
 
 // OpenConnection opens and returns a new connection
-func OpenConnectionV2(tag string, network string, address string, password string, db int, errChan chan<- error) (rmq.Connection, error) {
-	redisClient := redis2.NewClient(&redis2.Options{Network: network, Addr: address, Password: password, DB: db})
+func OpenConnectionV2(tag string, cfg *types.RedisConfig, errChan chan<- error) (rmq.Connection, error) {
+	redisClient := cfg.NewRedisClient()
 	return rmq.OpenConnectionWithRedisClient(tag, redisClient, errChan)
 }
 
 func (fRuntime *FlowRuntime) Execute(flowName string, request *runtime.Request) error {
 
-	connection, err := OpenConnectionV2("goflow", "tcp", fRuntime.RedisURL, fRuntime.RedisPassword, 0, nil)
+	connection, err := OpenConnectionV2("goflow", &fRuntime.RedisCfg, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initiate connection, error %v", err)
 	}
@@ -251,7 +246,7 @@ func (fRuntime *FlowRuntime) Execute(flowName string, request *runtime.Request) 
 }
 
 func (fRuntime *FlowRuntime) Pause(flowName string, request *runtime.Request) error {
-	connection, err := OpenConnectionV2("goflow", "tcp", fRuntime.RedisURL, fRuntime.RedisPassword, 0, nil)
+	connection, err := OpenConnectionV2("goflow", &fRuntime.RedisCfg, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initiate connection, error %v", err)
 	}
@@ -276,7 +271,7 @@ func (fRuntime *FlowRuntime) Pause(flowName string, request *runtime.Request) er
 }
 
 func (fRuntime *FlowRuntime) Stop(flowName string, request *runtime.Request) error {
-	connection, err := OpenConnectionV2("goflow", "tcp", fRuntime.RedisURL, fRuntime.RedisPassword, 0, nil)
+	connection, err := OpenConnectionV2("goflow", &fRuntime.RedisCfg, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initiate connection, error %v", err)
 	}
@@ -301,7 +296,7 @@ func (fRuntime *FlowRuntime) Stop(flowName string, request *runtime.Request) err
 }
 
 func (fRuntime *FlowRuntime) Resume(flowName string, request *runtime.Request) error {
-	connection, err := OpenConnectionV2("goflow", "tcp", fRuntime.RedisURL, fRuntime.RedisPassword, 0, nil)
+	connection, err := OpenConnectionV2("goflow", &fRuntime.RedisCfg, nil)
 	if err != nil {
 		return fmt.Errorf("failed to initiate connection, error %v", err)
 	}
@@ -639,14 +634,14 @@ func (fRuntime *FlowRuntime) saveWorkerDetails(worker *Worker) error {
 	rdb := fRuntime.rdb
 	key := fmt.Sprintf("%s:%s", WorkerKeyInitial, worker.ID)
 	value := marshalWorker(worker)
-	rdb.Set(key, value, time.Second*RDBKeyTimeOut)
+	rdb.Set(context.TODO(), key, value, time.Second*RDBKeyTimeOut)
 	return nil
 }
 
 func (fRuntime *FlowRuntime) deleteWorkerDetails(worker *Worker) error {
 	rdb := fRuntime.rdb
 	key := fmt.Sprintf("%s:%s", WorkerKeyInitial, worker.ID)
-	rdb.Del(key)
+	rdb.Del(context.TODO(), key)
 	return nil
 }
 
@@ -654,7 +649,7 @@ func (fRuntime *FlowRuntime) saveFlowDetails(flows map[string]string) error {
 	rdb := fRuntime.rdb
 	for flowId, definition := range flows {
 		key := fmt.Sprintf("%s:%s", FlowKeyInitial, flowId)
-		rdb.Set(key, definition, time.Second*RDBKeyTimeOut)
+		rdb.Set(context.TODO(), key, definition, time.Second*RDBKeyTimeOut)
 	}
 	return nil
 }
