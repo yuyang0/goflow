@@ -5,6 +5,7 @@ go 1.21.0
 require (
 	github.com/adjust/rmq/v5 v5.2.0
 	github.com/alexellis/hmac v0.0.0-20180624211220-5c52ab81c0de
+	github.com/alphadose/haxmap v1.3.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/jasonlvhit/gocron v0.0.1
 	github.com/opentracing/opentracing-go v1.2.0
@@ -47,6 +48,7 @@ require (
 	go.uber.org/atomic v1.6.0 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/exp v0.0.0-20221031165847-c99f073a8326 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect

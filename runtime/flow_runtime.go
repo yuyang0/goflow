@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/adjust/rmq/v5"
+	"github.com/alphadose/haxmap"
 	"github.com/jasonlvhit/gocron"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/xid"
@@ -24,7 +25,7 @@ import (
 )
 
 type FlowRuntime struct {
-	Flows                   map[string]FlowDefinitionHandler
+	Flows                   *haxmap.Map[string, FlowDefinitionHandler]
 	OpenTracingUrl          string
 	RedisCfg                types.RedisConfig
 	stateStore              sdk.StateStore
@@ -114,7 +115,7 @@ func (fRuntime *FlowRuntime) Init() error {
 }
 
 func (fRuntime *FlowRuntime) CreateExecutor(req *runtime.Request) (executor.Executor, error) {
-	flowHandler, ok := fRuntime.Flows[req.FlowName]
+	flowHandler, ok := fRuntime.Flows.Get(req.FlowName)
 	if !ok {
 		return nil, fmt.Errorf("could not find handler for flow %s", req.FlowName)
 	}
@@ -147,7 +148,7 @@ func (fRuntime *FlowRuntime) Register(flows map[string]FlowDefinitionHandler) er
 
 	var flowNames []string
 	for flowName := range flows {
-		if _, ok := fRuntime.Flows[flowName]; ok {
+		if _, ok := fRuntime.Flows.Get(flowName); ok {
 			return fmt.Errorf("flow %s already registered", flowName)
 		}
 
@@ -156,12 +157,12 @@ func (fRuntime *FlowRuntime) Register(flows map[string]FlowDefinitionHandler) er
 
 	// register flows to runtime
 	for flowName, flowHandler := range flows {
-		fRuntime.Flows[flowName] = flowHandler
+		fRuntime.Flows.Set(flowName, flowHandler)
 	}
 
 	// initialize task queues when in worker mode
 	if fRuntime.workerMode {
-		err := fRuntime.initializeTaskQueues(&fRuntime.rmqConnection, flows)
+		err := fRuntime.initializeTaskQueues(&fRuntime.rmqConnection, fRuntime.Flows)
 		if err != nil {
 			return fmt.Errorf(fmt.Sprintf("failed to initialize task queues for flows %v, error %v", flowNames, err))
 		}
@@ -351,13 +352,20 @@ func (fRuntime *FlowRuntime) StartRuntime() error {
 	registerDetails := func() error {
 		// Get the flow details for each flow
 		flowDetails := make(map[string]string)
-		for flowID, defHandler := range fRuntime.Flows {
+		var err error
+		fRuntime.Flows.ForEach(func(flowID string, defHandler FlowDefinitionHandler) bool {
+			var dag string
 			worker.Flows = append(worker.Flows, flowID)
-			dag, err := getFlowDefinition(defHandler)
+			dag, err = getFlowDefinition(defHandler)
 			if err != nil {
-				return fmt.Errorf("failed to start runtime, dag export failed, error %v", err)
+				err = fmt.Errorf("failed to start runtime, dag export failed, error %v", err)
+				return false
 			}
 			flowDetails[flowID] = dag
+			return true
+		})
+		if err != nil {
+			return err
 		}
 
 		if fRuntime.workerMode {
@@ -372,8 +380,7 @@ func (fRuntime *FlowRuntime) StartRuntime() error {
 			}
 		}
 
-		err := fRuntime.saveFlowDetails(flowDetails)
-		if err != nil {
+		if err := fRuntime.saveFlowDetails(flowDetails); err != nil {
 			return fmt.Errorf("failed to register flow details, %v", err)
 		}
 
@@ -547,67 +554,66 @@ func (fRuntime *FlowRuntime) handleStopRequest(request *runtime.Request) error {
 	return nil
 }
 
-func (fRuntime *FlowRuntime) initializeTaskQueues(connection *rmq.Connection, flows map[string]FlowDefinitionHandler) error {
+func (fRuntime *FlowRuntime) initializeTaskQueues(connection *rmq.Connection, flows *haxmap.Map[string, FlowDefinitionHandler]) error {
 
 	if fRuntime.taskQueues == nil {
 		fRuntime.taskQueues = make(map[string]rmq.Queue)
 	}
-
-	for flowName := range flows {
+	var outErr error
+	flows.ForEach(func(flowName string, value FlowDefinitionHandler) bool {
 		taskQueue, err := (*connection).OpenQueue(fRuntime.internalRequestQueueId(flowName))
 		if err != nil {
-			return fmt.Errorf("failed to open queue, error %v", err)
+			outErr = fmt.Errorf("failed to open queue, error %v", err)
+			return false
 		}
 
 		var pushQueues = make([]rmq.Queue, fRuntime.RetryQueueCount)
-		var previousQueue = taskQueue
+		var prevQ = taskQueue
 
-		index := 0
-		for index < fRuntime.RetryQueueCount {
-			pushQueues[index], err = (*connection).OpenQueue(fRuntime.internalRequestQueueId(flowName) + "push-" + fmt.Sprint(index))
+		for idx := 0; idx < fRuntime.RetryQueueCount; idx++ {
+			pushQueues[idx], err = (*connection).OpenQueue(fRuntime.internalRequestQueueId(flowName) + "push-" + fmt.Sprint(idx))
 			if err != nil {
-				return fmt.Errorf("failed to open push queue, error %v", err)
+				outErr = fmt.Errorf("failed to open push queue, error %v", err)
+				return false
 			}
-			previousQueue.SetPushQueue(pushQueues[index])
-			previousQueue = pushQueues[index]
-			index++
+			prevQ.SetPushQueue(pushQueues[idx])
+			prevQ = pushQueues[idx]
 		}
 
 		err = taskQueue.StartConsuming(10, time.Second)
 		if err != nil {
-			return fmt.Errorf("failed to start consumer taskQueue, error %v", err)
+			outErr = fmt.Errorf("failed to start consumer taskQueue, error %v", err)
+			return false
 		}
 		fRuntime.taskQueues[flowName] = taskQueue
 
-		index = 0
-		for index < fRuntime.RetryQueueCount {
-			err = pushQueues[index].StartConsuming(10, time.Second)
+		for idx := 0; idx < fRuntime.RetryQueueCount; idx++ {
+			err = pushQueues[idx].StartConsuming(10, time.Second)
 			if err != nil {
-				return fmt.Errorf("failed to start consumer pushQ1, error %v", err)
+				outErr = fmt.Errorf("failed to start consumer pushQ1, error %v", err)
+				return false
 			}
-			index++
 		}
 
-		index = 0
-		for index < fRuntime.Concurrency {
-			_, err := taskQueue.AddConsumer(fmt.Sprintf("request-consumer-%d", index), fRuntime)
+		for idx := 0; idx < fRuntime.Concurrency; idx++ {
+			_, err := taskQueue.AddConsumer(fmt.Sprintf("request-consumer-%d", idx), fRuntime)
 			if err != nil {
-				return fmt.Errorf("failed to add consumer, error %v", err)
+				outErr = fmt.Errorf("failed to add consumer, error %v", err)
+				return false
 			}
-			index++
 		}
 
-		index = 0
-		for index < fRuntime.RetryQueueCount {
-			_, err = pushQueues[index].AddConsumer(fmt.Sprintf("request-consumer-%d", index), fRuntime)
+		for idx := 0; idx < fRuntime.RetryQueueCount; idx++ {
+			_, err = pushQueues[idx].AddConsumer(fmt.Sprintf("request-consumer-%d", idx), fRuntime)
 			if err != nil {
-				return fmt.Errorf("failed to add consumer, error %v", err)
+				outErr = fmt.Errorf("failed to add consumer, error %v", err)
+				return false
 			}
-			index++
 		}
-	}
+		return true
+	})
 
-	return nil
+	return outErr
 }
 
 func (fRuntime *FlowRuntime) cleanTaskQueues() error {

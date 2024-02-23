@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/alphadose/haxmap"
 	runtimePkg "github.com/yuyang0/goflow/core/runtime"
 	"github.com/yuyang0/goflow/core/sdk"
 	"github.com/yuyang0/goflow/runtime"
@@ -275,7 +276,7 @@ func (fs *FlowService) initRuntime(errorChan chan error) error {
 	}
 
 	fs.runtime = &runtime.FlowRuntime{
-		Flows:                   map[string]runtime.FlowDefinitionHandler{},
+		Flows:                   haxmap.New[string, runtime.FlowDefinitionHandler](),
 		OpenTracingUrl:          fs.OpenTraceUrl,
 		RedisCfg:                fs.RedisCfg,
 		DataStore:               fs.DataStore,
