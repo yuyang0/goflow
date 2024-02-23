@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"sync/atomic"
 	"time"
 
 	"github.com/adjust/rmq/v5"
@@ -40,7 +41,7 @@ type FlowRuntime struct {
 	EnableMonitoring        bool
 	RetryQueueCount         int
 	DebugEnabled            bool
-	workerMode              bool
+	workerMode              atomic.Bool
 
 	eventHandler sdk.EventHandler
 
@@ -161,7 +162,7 @@ func (fRuntime *FlowRuntime) Register(flows map[string]FlowDefinitionHandler) er
 	}
 
 	// initialize task queues when in worker mode
-	if fRuntime.workerMode {
+	if fRuntime.workerMode.Load() {
 		err := fRuntime.initializeTaskQueues(&fRuntime.rmqConnection, fRuntime.Flows)
 		if err != nil {
 			return fmt.Errorf(fmt.Sprintf("failed to initialize task queues for flows %v, error %v", flowNames, err))
@@ -179,11 +180,11 @@ func (fRuntime *FlowRuntime) EnterWorkerMode() error {
 		return fmt.Errorf("unable to enter worker mode, rmq connection not initialized")
 	}
 
-	if fRuntime.workerMode {
+	if fRuntime.workerMode.Load() {
 		// already in worker mode
 		return nil
 	}
-	fRuntime.workerMode = true
+	fRuntime.workerMode.Store(true)
 
 	err := fRuntime.initializeTaskQueues(&fRuntime.rmqConnection, fRuntime.Flows)
 	if err != nil {
@@ -199,11 +200,11 @@ func (fRuntime *FlowRuntime) ExitWorkerMode() error {
 		return nil
 	}
 
-	if !fRuntime.workerMode {
+	if !fRuntime.workerMode.Load() {
 		// already not in worker mode
 		return nil
 	}
-	fRuntime.workerMode = false
+	fRuntime.workerMode.Store(false)
 
 	err := fRuntime.cleanTaskQueues()
 	if err != nil {
@@ -368,7 +369,7 @@ func (fRuntime *FlowRuntime) StartRuntime() error {
 			return err
 		}
 
-		if fRuntime.workerMode {
+		if fRuntime.workerMode.Load() {
 			err := fRuntime.saveWorkerDetails(worker)
 			if err != nil {
 				return fmt.Errorf("failed to register worker details, %v", err)
