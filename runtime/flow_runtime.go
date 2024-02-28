@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -52,6 +53,7 @@ type FlowRuntime struct {
 }
 
 type Worker struct {
+	mu          sync.Mutex
 	ID          string   `json:"id"`
 	Flows       []string `json:"flows"`
 	Concurrency int      `json:"concurrency"`
@@ -355,6 +357,9 @@ func (fRuntime *FlowRuntime) StartRuntime() error {
 		flowDetails := make(map[string]string)
 		var err error
 		fRuntime.Flows.ForEach(func(flowID string, defHandler FlowDefinitionHandler) bool {
+			worker.mu.Lock()
+			defer worker.mu.Unlock()
+
 			var dag string
 			worker.Flows = append(worker.Flows, flowID)
 			dag, err = getFlowDefinition(defHandler)
@@ -664,6 +669,8 @@ func (fRuntime *FlowRuntime) saveFlowDetails(flows map[string]string) error {
 }
 
 func marshalWorker(worker *Worker) string {
+	worker.mu.Lock()
+	defer worker.mu.Unlock()
 	jsonDef, _ := json.Marshal(worker)
 	return string(jsonDef)
 }
