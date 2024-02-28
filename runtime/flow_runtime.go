@@ -555,14 +555,15 @@ func (fRuntime *FlowRuntime) handleStopRequest(request *runtime.Request) error {
 	return nil
 }
 
-func (fRuntime *FlowRuntime) initializeTaskQueues(connection *rmq.Connection, flows *haxmap.Map[string, FlowDefinitionHandler]) error {
+func (fRuntime *FlowRuntime) initializeTaskQueues(conn *rmq.Connection, flows *haxmap.Map[string, FlowDefinitionHandler]) error {
 
 	if fRuntime.taskQueues == nil {
 		fRuntime.taskQueues = make(map[string]rmq.Queue)
 	}
 	var outErr error
 	flows.ForEach(func(flowName string, value FlowDefinitionHandler) bool {
-		taskQueue, err := (*connection).OpenQueue(fRuntime.internalRequestQueueId(flowName))
+		baseQId := fRuntime.internalRequestQueueId(flowName)
+		taskQueue, err := (*conn).OpenQueue(baseQId)
 		if err != nil {
 			outErr = fmt.Errorf("failed to open queue, error %v", err)
 			return false
@@ -572,7 +573,8 @@ func (fRuntime *FlowRuntime) initializeTaskQueues(connection *rmq.Connection, fl
 		var prevQ = taskQueue
 
 		for idx := 0; idx < fRuntime.RetryQueueCount; idx++ {
-			pushQueues[idx], err = (*connection).OpenQueue(fRuntime.internalRequestQueueId(flowName) + "push-" + fmt.Sprint(idx))
+			pushQId := fmt.Sprintf("%s-push-%d", baseQId, idx)
+			pushQueues[idx], err = (*conn).OpenQueue(pushQId)
 			if err != nil {
 				outErr = fmt.Errorf("failed to open push queue, error %v", err)
 				return false
